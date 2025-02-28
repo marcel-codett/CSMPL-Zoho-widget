@@ -17,10 +17,17 @@ import {
   Drawer,
   rem,
   SimpleGrid,
+  Accordion,
+  Radio,
+  Stack,
 } from "@mantine/core";
 import {
+  IconCameraSelfie,
   IconClipboardList,
   IconFileText,
+  IconPhone,
+  IconPhoto,
+  IconPrinter,
   IconSearch,
   IconUser,
   IconX,
@@ -31,22 +38,42 @@ import Summary from "@/components/Summary";
 
 export default function Home() {
   const [phoneNumber, setPhoneNumber] = useState("");
+  const [pin, setPin] = useState("");
   const [customerData, setCustomerData] = useState(null);
   const [opened, { open, close }] = useDisclosure(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [modalType, setModalType] = useState();
+  const [searchTypevalue, setSearchTypeValue] = useState("phone-number");
 
   // Ensure component only renders on the client
   const fetchCustomerData = async () => {
     setLoading(true);
     setError(null);
     setCustomerData(null);
+
+    if (!searchTypevalue) return setError("Please select a search type.");
+    if (searchTypevalue === "phone-number" && !phoneNumber.trim())
+      return setError("Please enter a phone number.");
+    if (searchTypevalue === "pin" && !pin.trim())
+      return setError("Please enter a PIN.");
+
     try {
-      const response = await fetch("/api/client/data", {
+      const requestBody =
+        searchTypevalue === "phone-number" ? { phoneNumber } : { pin };
+
+      const apiEndpoint =
+        searchTypevalue === "phone-number"
+          ? "/api/client/data"
+          : "/api/client/pin";
+
+      const response = await fetch(apiEndpoint, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ phoneNumber }),
+        body:
+          searchTypevalue === "phone-number"
+            ? JSON.stringify({ phoneNumber })
+            : JSON.stringify({ pin }),
       });
 
       if (response.status === 401)
@@ -75,13 +102,38 @@ export default function Home() {
         withBorder
         style={{ width: 450 }}
       >
-        <TextInput
-          label="Enter Phone Number"
-          placeholder="e.g. +2348123456789"
-          value={phoneNumber}
-          onChange={(e) => setPhoneNumber(e.target.value)}
-          size="md"
-        />
+        <Radio.Group
+          value={searchTypevalue}
+          onChange={setSearchTypeValue}
+          name="searchType"
+          withAsterisk
+        >
+          <Stack display="flex" style={{ flexDirection: "row" }} spacing="xs">
+            <Radio value="phone-number" label="Search by Phone Number" />
+            <Radio value="pin" label="Search by PIN" />
+          </Stack>
+        </Radio.Group>
+
+        {searchTypevalue === "phone-number" && (
+          <TextInput
+            placeholder="e.g. +2348123456789"
+            value={phoneNumber}
+            onChange={(e) => setPhoneNumber(e.target.value)}
+            size="md"
+            mt="sm"
+          />
+        )}
+
+        {searchTypevalue === "pin" && (
+          <TextInput
+            placeholder="PEN***********6"
+            value={pin}
+            onChange={(e) => setPin(e.target.value)}
+            size="md"
+            mt="sm"
+          />
+        )}
+
         <Button fullWidth mt="md" onClick={fetchCustomerData} loading={loading}>
           Search
         </Button>
