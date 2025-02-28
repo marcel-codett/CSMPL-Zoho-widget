@@ -1,16 +1,8 @@
 import { NextResponse } from "next/server";
 
 let cachedToken = null;
-let tokenExpiry = null; // Store token expiration time
 
 export async function POST() {
-  const currentTime = Date.now();
-
-  // If token exists and hasn't expired, return it
-  if (cachedToken && tokenExpiry && currentTime < tokenExpiry) {
-    return Response.json({ token: cachedToken });
-  }
-
   // If no valid token, fetch a new one
   try {
     const username = "ADMIN";
@@ -41,7 +33,6 @@ export async function POST() {
 
     // Store the token and its expiration (15 minutes)
     cachedToken = authHeader.replace("Bearer ", "");
-    tokenExpiry = currentTime + 15 * 60 * 1000; // 15 minutes in milliseconds
 
     return Response.json({ token: cachedToken });
   } catch (error) {
