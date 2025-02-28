@@ -57,8 +57,6 @@ export default function Home() {
       // 3️⃣ Store the result and open the modal
       const data = await response.json();
 
-      console.log(data);
-
       setCustomerData(data);
     } catch (err) {
       setError(err.message);

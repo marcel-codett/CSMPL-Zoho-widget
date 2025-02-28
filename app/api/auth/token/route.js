@@ -1,19 +1,24 @@
-let cachedToken = null;
-let tokenExpiry = null;
+import { Redis } from "@upstash/redis";
+
+const redis = new Redis({
+  url: process.env.UPSTASH_REDIS_REST_URL,
+  token: process.env.UPSTASH_REDIS_REST_TOKEN,
+});
 
 export async function GET() {
-  console.log("Token expiry:", tokenExpiry, "Current time:", Date.now());
-
-  // Check if token is still valid
-  if (cachedToken && tokenExpiry && tokenExpiry > Date.now()) {
-    console.log("Returning cached token:", cachedToken);
-    return Response.json({ token: cachedToken });
-  }
-
-  console.log("Token expired. Fetching a new one...");
-
-  // Fetch new token
   try {
+    // Retrieve token from Redis
+    const cachedToken = await redis.get("auth_token");
+    const tokenExpiry = await redis.get("token_expiry");
+
+    if (cachedToken && tokenExpiry && tokenExpiry > Date.now()) {
+      console.log("Returning cached token from Redis:", "cachedToken");
+      return Response.json({ token: cachedToken });
+    }
+
+    console.log("Token expired. Fetching a new one...");
+
+    // Fetch a new token
     const authResponse = await fetch(
       `${process.env.NEXT_PUBLIC_BASE_URL}/api/auth/login`,
       {
@@ -29,12 +34,15 @@ export async function GET() {
     }
 
     const authData = await authResponse.json();
-    cachedToken = authData.token; // Store the token in memory
-    tokenExpiry = Date.now() + 13 * 60 * 1000; // Set expiry to 14 minutes
+    const newToken = authData.token;
 
-    console.log("New token fetched:", cachedToken);
+    // Store token in Redis with an expiration of 13 minutes
+    await redis.set("auth_token", newToken, { ex: 780 });
+    await redis.set("token_expiry", Date.now() + 13 * 60 * 1000);
 
-    return Response.json({ token: cachedToken });
+    console.log("New token stored in Redis:", "newToken");
+
+    return Response.json({ token: newToken });
   } catch (error) {
     console.error("Token fetch failed:", error);
     return new Response(JSON.stringify({ error: "Failed to fetch token" }), {
